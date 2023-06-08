@@ -1,0 +1,187 @@
+USE [TestDB]
+GO
+
+/****** Object:  Trigger [dbo].[InsertEmployee]    Script Date: 20-04-2018 12:33:26 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TRIGGER  [dbo].[InsertEmployee] ON [dbo].[tblEmployee] AFTER INSERT
+AS 
+BEGIN
+	SET NOCOUNT ON;
+
+	INSERT INTO AuditTrail(TableName,ColumnName,OldValue,NewValue,ActionMode,ActionData)
+      SELECT 'tblEmployee','EmpID','null',i.EmpID,'Create',GETDATE()
+      FROM Inserted i
+END
+
+GO
+
+=======================================================================================================================================
+
+USE [TestDB]
+GO
+
+/****** Object:  Trigger [dbo].[UpdateEmployee]    Script Date: 20-04-2018 12:33:39 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TRIGGER  [dbo].[UpdateEmployee] ON [dbo].[tblEmployee] AFTER UPDATE
+AS 
+BEGIN
+	SET NOCOUNT ON;  
+
+    if update(EmpName)
+        INSERT INTO AuditTrail(TableName,ColumnName,OldValue,NewValue,ActionMode,ActionData)
+		SELECT 'tblEmployee','EmpName',d.EmpName,i.EmpName,'Update',GETDATE()
+		FROM Inserted i INNER JOIN deleted d on i.EmpID = d.EmpID
+
+
+    if update(EmpAddress)
+        INSERT INTO AuditTrail(TableName,ColumnName,OldValue,NewValue,ActionMode,ActionData)
+		SELECT 'tblEmployee','EmpAddress',d.EmpAddress,i.EmpAddress,'Update',GETDATE()
+		FROM Inserted i INNER JOIN deleted d on i.EmpID = d.EmpID
+
+END
+
+GO
+
+=============================================================================================================================
+
+USE [TestDB]
+GO
+/****** Object:  StoredProcedure [dbo].[sp_GetUserList]    Script Date: 20-04-2018 12:34:03 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+-- =============================================
+-- Author		: Subhankar Sarkar
+-- Create date	: 10/04/2018
+-- Description	: Get User List With Page index
+-- =============================================
+ALTER PROCEDURE [dbo].[sp_GetUserList] 
+	(		
+		@ShortBy		NVARCHAR(50),
+		@PageSize		NVARCHAR(50),
+		@SearchKey		NVARCHAR(50),
+		@PageNumber		NVARCHAR(50)
+	)	
+AS
+BEGIN
+  BEGIN TRY
+	BEGIN
+		SET NOCOUNT ON;
+		SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+		BEGIN TRANSACTION;
+
+		DECLARE @TotalRec NVARCHAR(50) = '50000'
+		
+		DECLARE @DSQLTOTAL nvarchar(4000) = 'SELECT COUNT(*) RowCount FROM user_details WHERE '+ CASE WHEN @SearchKey IS NULL THEN '1 = 1'
+																						ELSE 'user_id	LIKE (''%'+@SearchKey+'%'') OR
+																							 username	LIKE (''%'+@SearchKey+'%'') OR
+																							 first_name	LIKE (''%'+@SearchKey+'%'') OR
+																							 last_name	LIKE (''%'+@SearchKey+'%'') OR
+																							 gender		LIKE (''%'+@SearchKey+'%'') OR
+																							 password	LIKE (''%'+@SearchKey+'%'') OR
+																							 status		LIKE (''%'+@SearchKey+'%'')' END
+
+		--EXEC sp_executesql @DSQLTOTAL '@TotalRec NVARCHAR(50) OUTPUT',@name OUTPUT
+
+		DECLARE @DSQLLIST nvarchar(4000) = 'SELECT user_id,username,first_name,last_name,gender,password,status,'+CAST(@TotalRec AS nvarchar(50))+' TotalRec
+											FROM user_details
+											WHERE '+CASE WHEN @SearchKey IS NULL THEN '1 = 1'
+													ELSE   'user_id		LIKE (''%'+@SearchKey+'%'') OR
+															username	LIKE (''%'+@SearchKey+'%'') OR
+															first_name	LIKE (''%'+@SearchKey+'%'') OR
+															last_name	LIKE (''%'+@SearchKey+'%'') OR
+															gender		LIKE (''%'+@SearchKey+'%'') OR
+															password	LIKE (''%'+@SearchKey+'%'') OR
+															status		LIKE (''%'+@SearchKey+'%'')' END+'
+											GROUP BY user_id,username,first_name,last_name,gender,password,status
+											ORDER BY '+ CASE WHEN @ShortBy IS NOT NULL THEN @ShortBy ELSE 'user_id' END +'
+											OFFSET('+CAST(@PageSize*(@PageNumber-1) AS nvarchar(100))+') ROWS FETCH NEXT '+CAST(@PageSize AS nvarchar(10))+' ROWS ONLY OPTION (RECOMPILE)'
+			EXEC(@DSQLLIST)
+
+		COMMIT TRANSACTION;
+		END
+  END TRY
+
+  BEGIN CATCH
+	BEGIN
+		ROLLBACK TRANSACTION;
+
+ 		DECLARE @ErrorNumber	INT				= ERROR_NUMBER();
+		DECLARE @ErrorLine		INT				= ERROR_LINE();
+		DECLARE @ErrorMessage	NVARCHAR(4000)	= ERROR_MESSAGE();
+		DECLARE @ErrorSeverity	INT				= ERROR_SEVERITY();
+		DECLARE @ErrorState		INT				= ERROR_STATE();
+
+		SELECT @ErrorNumber ErrorNumber,@ErrorLine ErrorLine,@ErrorMessage ErrorMessage,@ErrorSeverity ErrorSeverity,@ErrorState ErrorState
+	END
+  END CATCH
+END
+
+====================================================================================================================================================
+
+USE [API_SERVICE]
+GO
+/****** Object:  StoredProcedure [dbo].[sp_CreateTrip]    Script Date: 20-04-2018 12:34:33 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author		: Subhankar Sarkar
+-- Create date	: 09/03/2018
+-- Description	: Create Trip from Admin
+-- =============================================
+ALTER PROCEDURE [dbo].[sp_CreateTrip] 
+	(
+		@TripName		NVARCHAR(50),
+		@Tripcode		NVARCHAR(20),
+		@Details		[dtTripDetails] READONLY
+	)	
+AS
+BEGIN
+	BEGIN TRY
+		BEGIN
+		SET NOCOUNT ON;
+		SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+		BEGIN TRANSACTION;
+
+			DECLARE @TripId INT
+
+			INSERT INTO tblTripMaster (TripName,Tripcode) VALUES (@TripName,@Tripcode)
+	
+			SET @TripId = SCOPE_IDENTITY()
+
+			INSERT INTO tblTripDetails(TripId,TripHeader,TripDetails) SELECT @TripId,TripDetails,TripHeader FROM @Details
+
+			SELECT 'Create Successfull' as Result
+
+		COMMIT TRANSACTION;
+		END
+  END TRY
+
+  BEGIN CATCH
+	BEGIN
+		ROLLBACK TRANSACTION;
+
+ 		DECLARE @ErrorNumber INT = ERROR_NUMBER();
+		DECLARE @ErrorLine INT = ERROR_LINE();
+		DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+		DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
+		DECLARE @ErrorState INT = ERROR_STATE();
+
+		SELECT @ErrorNumber ErrorNumber,@ErrorLine ErrorLine,@ErrorMessage ErrorMessage,@ErrorSeverity ErrorSeverity,@ErrorState ErrorState
+	END
+  END CATCH
+END
