@@ -16,4 +16,6 @@ ng add @angular/material
 
 --npm install json-server
 
-npm install bootstrap jquery popper.js --save
+npm install bootstrap --save
+npm install popper.js --save
+npm install jquery --save
