@@ -10,3 +10,10 @@ ng new ProjectName
 If any error angin Auth:
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted -Force
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
+
+Go Inside of project folder then 
+ng add @angular/material
+
+--npm install json-server
+
+ls
