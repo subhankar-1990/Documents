@@ -19,3 +19,12 @@ ng add @angular/material
 npm install bootstrap --save
 npm install popper.js --save
 npm install jquery --save
+
+/// After Path change
+ng update
+npm update
+
+
+//
+ng g c <Component Name> //For create new component
+ng g s <Service name> //For create new service
