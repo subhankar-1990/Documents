@@ -28,5 +28,5 @@ npm update
 ng g environments
 
 //
-ng g c <Component Name> //For create new component
+ng g c <Component Name> --skip-import//For create new component
 ng g s <Service name> //For create new service
