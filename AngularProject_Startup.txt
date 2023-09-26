@@ -5,7 +5,7 @@ npm install -g typescript
 
 npm install -g @angular/cli@latest
 
-ng new ProjectName 
+ng new <ProjectName> -s -S -g
 
 If any error angin Auth:
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted -Force
