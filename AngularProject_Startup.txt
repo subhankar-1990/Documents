@@ -24,6 +24,8 @@ npm install jquery --save
 ng update
 npm update
 
+//Create the environments folder
+ng g environments
 
 //
 ng g c <Component Name> //For create new component
