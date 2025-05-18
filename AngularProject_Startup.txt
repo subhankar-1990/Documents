@@ -1,6 +1,8 @@
 https://nodejs.org/en/download/
 npm -v
 
+Set-ExecutionPolicy RemoteSigned
+
 npm install -g typescript
 
 npm install -g @angular/cli@latest
